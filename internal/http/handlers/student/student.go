@@ -9,11 +9,12 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/saurav-lal-karn/students-api-go/internal/storage"
 	"github.com/saurav-lal-karn/students-api-go/internal/types"
 	"github.com/saurav-lal-karn/students-api-go/internal/utils/response"
 )
 
-func New() http.HandlerFunc {
+func New(storage storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// We need to serialize the data so we can use it in golang
 		// For that we need to serialize it in a struct
@@ -46,8 +47,18 @@ func New() http.HandlerFunc {
 			return
 		}
 
-		slog.Info("Creating a student")
+		id, err := storage.CreateStudent(
+			student.Name,
+			student.Email,
+			student.Age,
+		)
 
-		response.WriteJson(w, http.StatusCreated, map[string]string{"success": "ok"})
+		slog.Info("User Created successfully", slog.String("userId", fmt.Sprint(id)))
+
+		if err != nil {
+			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
+		}
+
+		response.WriteJson(w, http.StatusCreated, map[string]int64{"id": id})
 	}
 }

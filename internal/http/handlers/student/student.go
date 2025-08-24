@@ -99,3 +99,80 @@ func GetList(storage storage.Storage) http.HandlerFunc {
 		response.WriteJson(w, http.StatusOK, student)
 	}
 }
+
+func UpdateStudent(storage storage.Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("Updating the student")
+		// student, err := storage.UpdateStudent()
+		id := r.PathValue("id")
+		slog.Info("Getting the user by id", slog.String("Student Id", id))
+
+		intId, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			slog.Error("Invalid id passed by user", slog.String("student_id", id))
+			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+			return
+		}
+
+		var student types.Student
+
+		// Decode the request body and store it to student
+		err = json.NewDecoder(r.Body).Decode(&student)
+		// Check if the error is the correct one
+		if errors.Is(err, io.EOF) {
+			// Case where the request body is empty
+			// response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(fmt.Errorf("empty body")))
+			return
+		}
+
+		// General error handling
+		if err != nil {
+			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+			return
+		}
+
+		// Validate the user request
+		// Use no trust policy
+		// Request validation
+		// Use validator
+		if err := validator.New().Struct(student); err != nil {
+			// Need to typecast as the Validation function expects validation errors not general error
+			validateErrs := err.(validator.ValidationErrors)
+			response.WriteJson(w, http.StatusBadRequest, response.ValidationError(validateErrs))
+			return
+		}
+
+		updatedStudent, err := storage.UpdateStudent(intId, student.Name, student.Email, student.Age)
+		if err != nil {
+			slog.Error("Failed to update the student", slog.String("student_id", fmt.Sprint(intId)))
+			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
+			return
+		}
+
+		response.WriteJson(w, http.StatusOK, updatedStudent)
+	}
+}
+
+func DeleteStudent(storage storage.Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("Deleting the student")
+		id := r.PathValue("id")
+		slog.Info("Getting the user by id", slog.String("Student Id", id))
+
+		intId, err := strconv.ParseInt(id, 10, 64)
+		if err != nil {
+			slog.Error("Invalid id passed by user", slog.String("student_id", id))
+			response.WriteJson(w, http.StatusBadRequest, response.GeneralError(err))
+			return
+		}
+
+		err = storage.DeleteStudent(intId)
+		if err != nil {
+			slog.Error("Failed to delete student: ", slog.String("student_id", fmt.Sprint(intId)))
+			response.WriteJson(w, http.StatusInternalServerError, response.GeneralError(err))
+			return
+		}
+		response.WriteJson(w, http.StatusOK, "student deleted")
+	}
+}

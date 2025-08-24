@@ -104,3 +104,60 @@ func (s *Sqlite) GetStudents() ([]types.Student, error) {
 
 	return students, nil
 }
+
+func (s *Sqlite) UpdateStudent(id int64, name string, email string, age int) (types.Student, error) {
+	_, err := s.GetStudentById(id)
+	if err != nil {
+		return types.Student{}, err
+	}
+
+	// Prepare query to prevent from SQL injection
+	stmt, err := s.Db.Prepare("UPDATE students SET name = ?,email = ?, age= ? WHERE id=?")
+	if err != nil {
+		return types.Student{}, err
+	}
+	// Close the statement once the function completes
+	defer stmt.Close()
+
+	result, err := stmt.Exec(name, email, age, id)
+	if err != nil {
+		return types.Student{}, err
+	}
+
+	// Exec returns the last insert id and number of rows effected
+	rowsUpdated, err := result.RowsAffected()
+	if err != nil {
+		return types.Student{}, err
+	}
+
+	if rowsUpdated > 0 {
+		updatedStudent, err := s.GetStudentById(id)
+		if err != nil {
+			return types.Student{}, err
+		}
+		return updatedStudent, nil
+	} else {
+		return types.Student{}, fmt.Errorf("no rows found to be updated")
+	}
+}
+
+func (s *Sqlite) DeleteStudent(id int64) error {
+	_, err := s.GetStudentById(id)
+	if err != nil {
+		return err
+	}
+	// Prepare query to prevent from SQL injection
+	stmt, err := s.Db.Prepare("DELETE FROM students WHERE id=?")
+	if err != nil {
+		return err
+	}
+	// Close the statement once the function completes
+	defer stmt.Close()
+
+	_, err = stmt.Exec(id)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
